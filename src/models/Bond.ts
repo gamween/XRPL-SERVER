@@ -8,20 +8,21 @@ export interface IBond extends Document {
   bondId: string;                    // ID unique de l'obligation
   issuerAddress: string;             // Adresse XRPL de l'émetteur
   issuerName: string;                // Nom de l'entreprise émettrice
-  
+  contactEmail: string;              // Email de contact de l'émetteur
+
   // Informations du token
   tokenCurrency: string;             // Code du token MPT sur XRPL (hex)
   tokenName: string;                 // Nom lisible du token
   totalSupply: string;               // Nombre total de tokens émis
-  denomination: string;              // Valeur nominale par token (en USDC micro-units)
-  usdcIssuer?: string;               // Issuer du token USDC sur XRPL
+  denomination: string;              // Valeur nominale par token (pour calcul des coupons)
+  minimumTicket?: number;            // Investissement minimum requis (optionnel)
   
   // Conditions financières
   couponRate: number;                // Taux du coupon (ex: 5 pour 5%)
   couponFrequency: 'monthly' | 'quarterly' | 'semi-annual' | 'annual' | 'none';
   maturityDate: number;              // Date d'échéance (timestamp)
   issueDate: number;                 // Date d'émission (timestamp)
-  nextCouponDate: number;            // Prochaine date de paiement de coupon
+  durationYears: number;             // Durée en années
   
   // Statut et métadonnées
   status: 'active' | 'matured' | 'defaulted' | 'cancelled';
@@ -75,8 +76,9 @@ const BondSchema = new Schema<IBond>({
     type: String, 
     required: true 
   },
-  usdcIssuer: { 
-    type: String 
+  minimumTicket: { 
+    type: Number,
+    min: 0
   },
   couponRate: { 
     type: Number, 
@@ -94,10 +96,6 @@ const BondSchema = new Schema<IBond>({
     required: true 
   },
   issueDate: { 
-    type: Number, 
-    required: true 
-  },
-  nextCouponDate: { 
     type: Number, 
     required: true 
   },
@@ -126,8 +124,8 @@ const BondSchema = new Schema<IBond>({
 });
 
 // Index composés pour requêtes fréquentes
-BondSchema.index({ status: 1, nextCouponDate: 1 });
 BondSchema.index({ issuerAddress: 1, status: 1 });
+BondSchema.index({ status: 1, maturityDate: 1 });
 
 // Supprimer le modèle existant s'il existe (pour éviter les conflits de schéma)
 if (mongoose.models.Bond) {

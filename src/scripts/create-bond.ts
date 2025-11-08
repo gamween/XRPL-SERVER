@@ -47,7 +47,7 @@ async function createBond() {
     console.log(`Bond ID: ${bond.bondId}`);
     console.log(`Token Currency: ${bond.tokenCurrency}`);
     console.log(`Issuer Address: ${bond.issuerAddress}`);
-    console.log(`Next Coupon Date: ${new Date(bond.nextCouponDate).toISOString()}`);
+    console.log(`Maturity Date: ${new Date(bond.maturityDate).toISOString()}`);
 
     await disconnectDB();
   } catch (error) {

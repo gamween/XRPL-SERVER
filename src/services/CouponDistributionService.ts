@@ -161,14 +161,6 @@ export class CouponDistributionService {
         throw new Error(`Obligation ${bondId} introuvable`);
       }
 
-      // Vérifie si un coupon est dû
-      const now = Date.now();
-      if (bond.nextCouponDate > now) {
-        console.log('ℹ️  Aucun coupon dû pour le moment');
-        await this.client.disconnect();
-        return;
-      }
-
       console.log(`💰 Exécution du paiement de coupon pour ${bond.tokenName}`);
 
       await this.executeCouponPayment(bondId);
@@ -224,7 +216,7 @@ export class CouponDistributionService {
             Amount: {
               currency: 'USD',
               value: (BigInt(amount) / BigInt(1000000)).toString(),
-              issuer: bond.usdcIssuer || this.issuerWallet.address
+              issuer: this.issuerWallet.address
             },
             Memos: [{
               Memo: {
@@ -273,10 +265,9 @@ export class CouponDistributionService {
       bond.stats.totalCouponsPaid = (
         BigInt(bond.stats.totalCouponsPaid) + totalPaid
       ).toString();
-      bond.nextCouponDate = this.calculateNextCouponDate(bond);
       await bond.save();
 
-      console.log(`✅ Paiement complété - Total: ${totalPaid.toString()}, Prochaine date: ${new Date(bond.nextCouponDate).toISOString()}`);
+      console.log(`✅ Paiement complété - Total: ${totalPaid.toString()}`);
     } catch (error) {
       console.error('❌ Erreur lors du paiement:', error);
       throw error;

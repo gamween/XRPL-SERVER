@@ -477,7 +477,6 @@ router.get('/holders/:address/bonds', async (req: Request, res: Response) => {
           bond: {
             tokenName: bond.tokenName,
             couponRate: bond.couponRate,
-            nextCouponDate: bond.nextCouponDate,
             maturityDate: bond.maturityDate,
             status: bond.status
           }
