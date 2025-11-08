@@ -53,9 +53,9 @@ export class BondTransactionMonitor {
         try {
           await this.client.request({ command: 'subscribe', streams: ['transactions'] });
           console.log('✅ Abonné au stream global de transactions');
-        } catch (e) {
+        } catch (e: any) {
           // Ne bloque pas le monitoring si l'abonnement échoue
-          console.warn('⚠️ Impossible de s\'abonner au stream global de transactions:', e.message || e);
+          console.warn('⚠️ Impossible de s\'abonner au stream global de transactions:', e?.message || e);
         }
 
       console.log('👀 Monitoring des transactions démarré');
@@ -112,24 +112,48 @@ export class BondTransactionMonitor {
         return;
       }
 
-      // Filtre uniquement les adresses XRPL valides (commencent par 'r' et ont la bonne longueur)
+      // Regex stricte pour valider les adresses XRPL
+      const xrplAddressRegex = /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/;
+
+      // Filtre uniquement les adresses XRPL valides
       const validAccounts = activeBonds
         .map(bond => bond.issuerAddress)
-        .filter(address => address.startsWith('r') && address.length >= 25 && address.length <= 35);
+        .filter(address => {
+          // Vérifie avec regex strict
+          const isValid = address && 
+                         typeof address === 'string' && 
+                         xrplAddressRegex.test(address);
+          
+          if (!isValid && address) {
+            console.log(`⚠️  Adresse invalide ignorée: ${address}`);
+          }
+          
+          return isValid;
+        });
 
       if (validAccounts.length === 0) {
-        console.log('⚠️  Aucune adresse XRPL valide à surveiller (obligations de test)');
+        console.log('⚠️  Aucune adresse XRPL valide à surveiller');
         return;
       }
 
+      // Déduplique les adresses
+      const uniqueAccounts = [...new Set(validAccounts)];
+
+      if (uniqueAccounts.length === 0) {
+        console.log('⚠️  Aucune adresse valide après déduplication');
+        return;
+      }
+
+      console.log(`📋 Tentative d'abonnement à: ${uniqueAccounts.join(', ')}`);
+
       await this.client.request({
         command: 'subscribe',
-        accounts: [...new Set(validAccounts)] // Supprime les doublons
+        accounts: uniqueAccounts
       });
 
-      console.log(`✅ Abonné à ${validAccounts.length} obligation(s) avec adresses valides`);
-    } catch (error) {
-      console.error('❌ Erreur lors de la souscription aux bonds:', error);
+      console.log(`✅ Abonné à ${uniqueAccounts.length} adresse(s) XRPL valide(s)`);
+    } catch (error: any) {
+      console.error('❌ Erreur lors de la souscription aux bonds:', error.message || error);
       // Ne lance pas d'erreur pour permettre au serveur de continuer
     }
   }
@@ -139,7 +163,14 @@ export class BondTransactionMonitor {
    */
   private async handleTransaction(txData: any): Promise<void> {
     try {
-      const tx = txData.transaction;
+      // Le format diffère selon la source (subscription account vs stream transactions)
+      const tx = txData.transaction || txData.tx_json;
+      
+      // Vérifie que la transaction existe
+      if (!tx) {
+        console.warn('⚠️  Transaction reçue sans données tx:', txData);
+        return;
+      }
       
       // Ignore les transactions non validées
       if (txData.validated !== true) {
@@ -147,7 +178,8 @@ export class BondTransactionMonitor {
       }
 
       // Log toutes les transactions pour debugging
-      console.log(`📡 Transaction détectée: ${tx.TransactionType} (${txData.transaction.hash})`);
+      const txHash = txData.transaction?.hash || txData.hash;
+      console.log(`📡 Transaction détectée: ${tx.TransactionType} (${txHash})`);
 
       // Gère tous les types de transactions liées aux tokens
       switch (tx.TransactionType) {
