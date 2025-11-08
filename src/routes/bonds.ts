@@ -1,9 +1,114 @@
 import express, { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import { Bond } from '../models/Bond';
 import { getBondInvestorModel } from '../models/BondInvestor';
 import { BondStatsService } from '../services/BondStatsService';
+import { requireApiKey } from '../middleware/apiAuth';
 
 const router = express.Router();
+
+/**
+ * POST /v1/bonds/submit
+ * Route appelée par le front quand "Submission Received!" apparaît
+ * Crée/met à jour une obligation et crée la collection holders dédiée
+ */
+router.post('/submit', requireApiKey, async (req: Request, res: Response) => {
+  try {
+    const payload = req.body;
+
+    // Validation minimale : bondId requis
+    if (!payload.bondId) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Missing required field: bondId'
+      });
+    }
+
+    // Mapping exact Front → MongoDB
+    const bondData = {
+      bondId: payload.bondId,
+      issuerName: payload.issuerName,
+      contactEmail: payload.contactEmail,
+      couponFrequency: payload.couponFrequency,
+      totalSupply: payload.totalSupply,
+      issuerAddress: payload.issuerAddress,
+      issueDate: payload.issueDate,
+      maturityDate: payload.maturityDate,
+      durationYears: payload.durationYears,
+      couponRate: payload.couponRate,
+      tokenName: payload.tokenName,
+      tokenCurrency: payload.tokenCurrency,
+      minimumTicket: payload.minimumTicket,
+      status: 'pending',
+      // Champs optionnels/par défaut
+      denomination: '1',
+      description: `Bond ${payload.tokenName || payload.bondId}`,
+      stats: {
+        totalInvestors: 0,
+        totalInvested: '0',
+        percentageDistributed: 0,
+        totalCouponsPaid: '0'
+      }
+    };
+
+    // Upsert dans la collection bonds
+    const bond = await Bond.findOneAndUpdate(
+      { bondId: payload.bondId },
+      { $set: bondData },
+      { upsert: true, new: true, runValidators: true }
+    );
+
+    // Créer la collection holders_<bondId> si elle n'existe pas
+    const holdersCollectionName = `holders_${payload.bondId}`;
+    const db = mongoose.connection.db;
+    
+    if (!db) {
+      throw new Error('Database connection not available');
+    }
+
+    // Vérifier si la collection existe
+    const collections = await db.listCollections({ name: holdersCollectionName }).toArray();
+    const collectionExists = collections.length > 0;
+
+    if (!collectionExists) {
+      // Créer la collection
+      await db.createCollection(holdersCollectionName);
+      console.log(`✅ Collection ${holdersCollectionName} créée`);
+
+      // Créer les index
+      const collection = db.collection(holdersCollectionName);
+      
+      // Index unique sur account
+      await collection.createIndex({ account: 1 }, { unique: true, name: 'uniq_account' });
+      
+      // Index sur createdAt
+      await collection.createIndex({ createdAt: 1 }, { name: 'idx_createdAt' });
+      
+      console.log(`✅ Index créés pour ${holdersCollectionName}`);
+    } else {
+      console.log(`ℹ️  Collection ${holdersCollectionName} existe déjà`);
+    }
+
+    // Retourner la réponse
+    res.status(200).json({
+      ok: true,
+      bond: {
+        bondId: bond.bondId,
+        issuerName: bond.issuerName,
+        tokenName: bond.tokenName,
+        status: bond.status
+      },
+      holdersCollection: holdersCollectionName
+    });
+
+  } catch (error: any) {
+    console.error('Error in /submit:', error);
+    res.status(500).json({
+      ok: false,
+      error: error.message || 'Failed to submit bond'
+    });
+  }
+});
 
 /**
  * GET /api/bonds

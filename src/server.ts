@@ -20,7 +20,8 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use('/api/bonds', bondsRouter);
+app.use('/api/bonds', bondsRouter);    // Routes existantes
+app.use('/v1/bonds', bondsRouter);     // Nouvelles routes avec /v1 prefix
 
 // Route de santé
 app.get('/health', (req, res) => {

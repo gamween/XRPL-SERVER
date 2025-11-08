@@ -1,0 +1,15 @@
+{
+  "issuerName": "ACME Corp",
+  "contactEmail": "bond@acme.com",
+  "couponFrequency": "Quarterly",
+  "totalSupply": 1000000,
+  "issuerAddress": "rXXXXXXXXXXXXXXXXXXXXXXXX",
+  "issueDate": "2025-11-08T09:50:00Z",
+  "maturityDate": "2028-11-08T00:00:00Z",
+  "durationYears": 3,
+  "couponRate": 0.07,
+  "bondId": "BOND-1762591845170-6952",
+  "tokenName": "ACME2028",
+  "tokenCurrency": "ACM28",
+  "minimumTicket": 100
+}

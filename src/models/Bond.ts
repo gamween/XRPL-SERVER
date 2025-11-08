@@ -18,15 +18,15 @@ export interface IBond extends Document {
   minimumTicket?: number;            // Investissement minimum requis (optionnel)
   
   // Conditions financières
-  couponRate: number;                // Taux du coupon (ex: 5 pour 5%)
-  couponFrequency: 'monthly' | 'quarterly' | 'semi-annual' | 'annual' | 'none';
-  maturityDate: number;              // Date d'échéance (timestamp)
-  issueDate: number;                 // Date d'émission (timestamp)
+  couponRate: number;                // Taux du coupon (ex: 5 pour 5% ou 0.07 pour 7%)
+  couponFrequency: string;           // 'Monthly', 'Quarterly', 'Semi-Annual', 'Annual', etc.
+  maturityDate: string;              // Date d'échéance (ISO string ou timestamp)
+  issueDate: string;                 // Date d'émission (ISO string ou timestamp)
   durationYears: number;             // Durée en années
   
   // Statut et métadonnées
-  status: 'active' | 'matured' | 'defaulted' | 'cancelled';
-  description: string;
+  status: 'pending' | 'active' | 'matured' | 'defaulted' | 'cancelled';
+  description?: string;
   riskRating?: string;               // AAA, AA, A, BBB, etc.
   
   // Statistiques (calculées et mises à jour automatiquement)
@@ -58,6 +58,10 @@ const BondSchema = new Schema<IBond>({
     type: String, 
     required: true 
   },
+  contactEmail: {
+    type: String,
+    required: true
+  },
   tokenCurrency: { 
     type: String, 
     required: true, 
@@ -69,12 +73,11 @@ const BondSchema = new Schema<IBond>({
     required: true 
   },
   totalSupply: { 
-    type: String, 
+    type: Schema.Types.Mixed,  // Accepte Number ou String
     required: true 
   },
   denomination: { 
-    type: String, 
-    required: true 
+    type: String
   },
   minimumTicket: { 
     type: Number,
@@ -84,30 +87,32 @@ const BondSchema = new Schema<IBond>({
     type: Number, 
     required: true,
     min: 0,
-    max: 100 
+    max: 1  // 0.07 = 7%
   },
   couponFrequency: { 
     type: String, 
-    enum: ['monthly', 'quarterly', 'semi-annual', 'annual', 'none'],
     required: true 
   },
   maturityDate: { 
-    type: Number, 
+    type: String,  // ISO string ou timestamp
     required: true 
   },
   issueDate: { 
-    type: Number, 
+    type: String,  // ISO string ou timestamp
     required: true 
+  },
+  durationYears: {
+    type: Number,
+    required: true
   },
   status: { 
     type: String, 
-    enum: ['active', 'matured', 'defaulted', 'cancelled'],
-    default: 'active',
+    enum: ['pending', 'active', 'matured', 'defaulted', 'cancelled'],
+    default: 'pending',
     index: true 
   },
   description: { 
-    type: String, 
-    required: true 
+    type: String
   },
   riskRating: { 
     type: String 
